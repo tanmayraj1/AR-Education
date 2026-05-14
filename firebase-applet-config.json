@@ -1,10 +1,9 @@
 {
-  "projectId": "arctic-spot-b5xj8",
-  "appId": "1:254791669465:web:5a6a7a7fb25b81fb7c10c8",
-  "apiKey": "AIzaSyDOzxHepYFpCZL_4dwa46KseuU-qJpmi40",
-  "authDomain": "arctic-spot-b5xj8.firebaseapp.com",
-  "firestoreDatabaseId": "ai-studio-6034551b-b8ca-464c-94aa-3e263e2db5dd",
-  "storageBucket": "arctic-spot-b5xj8.firebasestorage.app",
-  "messagingSenderId": "254791669465",
-  "measurementId": ""
+  "apiKey": "AIzaSyBJup5XNCfH4_9Q-H3tYYrLkPZarf_7EcM",
+  "authDomain": "ar-eductaion.firebaseapp.com",
+  "projectId": "ar-eductaion",
+  "storageBucket": "ar-eductaion.firebasestorage.app",
+  "messagingSenderId": "909110268282",
+  "appId": "1:909110268282:web:47dd0630f79f698b6306c3",
+  "measurementId": "G-2J43P7010S"
 }
