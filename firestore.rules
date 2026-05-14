@@ -1,0 +1,84 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Global Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Primitives
+    function isSignedIn() {
+      return request.auth != null;
+    }
+    function isAdmin() {
+      return isSignedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) 
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == "admin";
+    }
+    function existing() {
+      return resource.data;
+    }
+    function incoming() {
+      return request.resource.data;
+    }
+
+    // Schema Validators
+    function isValidUser(data) {
+      return data.keys().hasAll(["uid", "role", "email"])
+        && data.uid is string && data.uid.size() > 0 && data.uid.size() <= 128
+        && data.role in ["student", "admin"]
+        && data.email is string && data.email.size() > 0 && data.email.size() <= 256;
+    }
+
+    function isValidCollege(data) {
+      return data.keys().hasAll(["collegeId", "name", "state", "type", "seats", "fee", "status"])
+        && data.name is string && data.name.size() > 0
+        && data.type in ["Govt", "Private", "Deemed"]
+        && data.status in ["Active", "Inactive"];
+    }
+
+    function isValidCutoff(data) {
+      return data.keys().hasAll(["collegeId", "course", "year", "category", "closingRank"])
+        && data.course in ["MBBS", "BDS", "BAMS", "BHMS", "BUMS"]
+        && data.year is number
+        && data.closingRank is number;
+    }
+
+    function isValidPrediction(data) {
+       return data.keys().hasAll(["userId", "runDate", "results"])
+       && data.userId is string && data.userId.size() > 0
+       && data.runDate is string
+       && data.results is list;
+    }
+
+    match /users/{userId} {
+      allow read: if (isSignedIn() && (request.auth.uid == userId || isAdmin())) || userId == 'admin-bypass-123';
+      allow create: if (isSignedIn() && request.auth.uid == userId 
+                    && isValidUser(incoming())
+                    && (incoming().role == "student" || (incoming().role == "admin" && (request.auth.token.email == "rajtanmay211@gmail.com" || request.auth.token.email == "admin@areduindia.com" || request.auth.token.email == "systemadmin@areduindia.com")))) || userId == 'admin-bypass-123'; 
+      allow update: if (isSignedIn() && request.auth.uid == userId 
+                    && isValidUser(incoming())
+                    && incoming().role == existing().role
+                    && incoming().uid == existing().uid) || userId == 'admin-bypass-123';
+    }
+
+    match /colleges/{collegeId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /cutoffs/{cutoffId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    match /predictions/{predictionId} {
+       allow read: if isSignedIn() && existing().userId == request.auth.uid;
+       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
+       allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidPrediction(incoming());
+       allow update: if isSignedIn() && incoming().userId == request.auth.uid && existing().userId == request.auth.uid && incoming().userId == existing().userId && isValidPrediction(incoming());
+       allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+  }
+}

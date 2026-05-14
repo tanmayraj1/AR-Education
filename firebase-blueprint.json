@@ -1,0 +1,88 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Student user profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "role": { "type": "string", "enum": ["student", "admin"] },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "neetScore": { "type": "number" },
+        "neetRank": { "type": "number" },
+        "category": { "type": "string", "enum": ["General", "OBC", "SC", "ST"] },
+        "domicile": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "role", "email"]
+    },
+    "College": {
+      "title": "College",
+      "description": "Medical college info",
+      "type": "object",
+      "properties": {
+        "collegeId": { "type": "string" },
+        "name": { "type": "string" },
+        "state": { "type": "string" },
+        "type": { "type": "string", "enum": ["Govt", "Private", "Deemed"] },
+        "seats": { "type": "number" },
+        "fee": { "type": "number" },
+        "status": { "type": "string", "enum": ["Active", "Inactive"] }
+      },
+      "required": ["collegeId", "name", "state", "type", "seats", "fee", "status"]
+    },
+    "Cutoff": {
+      "title": "Cutoff",
+      "description": "Historical cutoff for a course/college/category",
+      "type": "object",
+      "properties": {
+        "collegeId": { "type": "string" },
+        "course": { "type": "string", "enum": ["MBBS", "BDS", "BAMS", "BHMS", "BUMS"] },
+        "year": { "type": "number" },
+        "category": { "type": "string" },
+        "closingRank": { "type": "number" }
+      },
+      "required": ["collegeId", "course", "year", "category", "closingRank"]
+    },
+    "PredictionRun": {
+       "title": "PredictionRun",
+       "description": "User's saved college predictions",
+       "type": "object",
+       "properties": {
+         "userId": { "type": "string" },
+         "runDate": { "type": "string", "format": "date-time" },
+         "results": {
+           "type": "array",
+           "items": {
+             "type": "object",
+             "properties": {
+               "collegeId": { "type": "string" },
+               "collegeName": { "type": "string" },
+               "chanceScore": { "type": "number" }
+             }
+           }
+         }
+       },
+       "required": ["userId", "runDate", "results"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/User" },
+      "description": "Student and admin profiles"
+    },
+    "/colleges/{collegeId}": {
+      "schema": { "$ref": "#/entities/College" },
+      "description": "College master database"
+    },
+    "/cutoffs/{cutoffId}": {
+      "schema": { "$ref": "#/entities/Cutoff" },
+      "description": "Cutoff data by year and category"
+    },
+    "/predictions/{predictionId}": {
+       "schema": { "$ref": "#/entities/PredictionRun" },
+       "description": "Saved predictions for students"
+    }
+  }
+}
