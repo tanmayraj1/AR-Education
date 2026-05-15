@@ -4,26 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Google AI Studio App</title>
-    <script>
-      (function() {
-        try {
-          var descriptor = Object.getOwnPropertyDescriptor(window, 'fetch');
-          if (descriptor && !descriptor.writable && !descriptor.set) {
-            var originalFetch = window.fetch;
-            try {
-              Object.defineProperty(window, 'fetch', {
-                value: originalFetch,
-                writable: true,
-                configurable: true,
-                enumerable: true
-              });
-            } catch (e) {
-              console.warn('Could not make window.fetch writable');
-            }
-          }
-        } catch (e) {}
-      })();
-    </script>
   </head>
   <body>
     <div id="root"></div>

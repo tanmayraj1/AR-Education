@@ -51,84 +51,45 @@ import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const DashboardHome = () => {
-  const { userProfile } = useAuth();
-  
-  const getPredictionsData = () => {
-    const courseType = userProfile?.course || 'NEET';
-    const rank = courseType === 'BTECH' ? (userProfile?.jeeRank || 250000) : (userProfile?.neetRank || 150000);
-    
-    // Using a basic multiplier based on category for mock cutoffs
-    let rankMultiplier = 1;
-    if (userProfile?.category === 'OBC-NCL') rankMultiplier = 2.5;
-    else if (userProfile?.category === 'EWS') rankMultiplier = 2;
-    else if (userProfile?.category === 'SC') rankMultiplier = 5;
-    else if (userProfile?.category === 'ST') rankMultiplier = 8;
-    
-    let data = [];
-    if (courseType === 'BTECH') {
-      const baseColleges = [
-        { name: 'IIT Bombay', state: 'Maharashtra', course: 'B.Tech CS', baseCutoff: 150 },
-        { name: 'IIT Delhi', state: 'Delhi', course: 'B.Tech CS', baseCutoff: 500 },
-        { name: 'NIT Trichy', state: 'Tamil Nadu', course: 'B.Tech CS', baseCutoff: 1500 },
-        { name: 'DTU', state: 'Delhi', course: 'B.Tech ECE', baseCutoff: 8000 },
-        { name: 'NSUT', state: 'Delhi', course: 'B.Tech Mech', baseCutoff: 15000 },
-        { name: 'NIT Warangal', state: 'Telangana', course: 'B.Tech Civil', baseCutoff: 21000 },
-        { name: 'BIT Mesra', state: 'Jharkhand', course: 'B.Tech Civil', baseCutoff: 35000 },
-        { name: 'VIT Vellore', state: 'Tamil Nadu', course: 'B.Tech Mech', baseCutoff: 55000 },
-      ];
-      data = baseColleges.map(c => ({
-        ...c,
-        cutoff: Math.round(c.baseCutoff * rankMultiplier)
-      }));
-    } else {
-      const baseColleges = [
-        { name: 'AIIMS New Delhi', state: 'Delhi', course: 'MBBS', baseCutoff: 60 },
-        { name: 'Maulana Azad Medical College', state: 'Delhi', course: 'MBBS', baseCutoff: 1000 },
-        { name: 'VMMC & Safdarjung', state: 'Delhi', course: 'MBBS', baseCutoff: 1500 },
-        { name: 'Seth GS Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 2000 },
-        { name: 'AFMC Pune', state: 'Maharashtra', course: 'MBBS', baseCutoff: 3000 },
-        { name: 'Grant Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 4500 },
-        { name: 'Stanley Medical College', state: 'Tamil Nadu', course: 'MBBS', baseCutoff: 8500 },
-        { name: 'GMC Nagpur', state: 'Maharashtra', course: 'MBBS', baseCutoff: 12000 },
-      ];
-      data = baseColleges.map(c => ({
-        ...c,
-        cutoff: Math.round(c.baseCutoff * rankMultiplier)
-      }));
-    }
-    
-    // Calculate chance and sort
-    return data.map(c => {
-      let chance = 'Low';
-      if (rank <= c.cutoff) chance = 'High';
-      else if (rank <= c.cutoff * 1.5) chance = 'Medium';
-      return { ...c, chance };
-    }).sort((a, b) => {
-      const scoreA = (a.chance === 'High' ? 3 : a.chance === 'Medium' ? 2 : 1);
-      const scoreB = (b.chance === 'High' ? 3 : b.chance === 'Medium' ? 2 : 1);
-      if (scoreA !== scoreB) return scoreB - scoreA;
-      return a.cutoff - b.cutoff;
-    }).slice(0, 5); // Show top 5 best matches
-  };
+  const { userProfile, currentUser } = useAuth();
+  const [dashboardColleges, setDashboardColleges] = React.useState<any[]>([]);
+  const [loadingColleges, setLoadingColleges] = React.useState(true);
+
+  React.useEffect(() => {
+    if (!currentUser) return;
+    const fetchSaved = async () => {
+      try {
+        const q = query(collection(db, 'users', currentUser.uid, 'saved_colleges'));
+        const snap = await getDocs(q);
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+        // Sort by chance/scoreValue
+        data.sort((a,b) => (b.scoreValue || 0) - (a.scoreValue || 0));
+        setDashboardColleges(data.slice(0, 5));
+      } catch (e) {
+        console.error(e);
+      } finally {
+        setLoadingColleges(false);
+      }
+    };
+    fetchSaved();
+  }, [currentUser]);
 
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     const courseType = userProfile?.course || 'NEET';
     const rank = courseType === 'BTECH' ? (userProfile?.jeeRank || 250000) : (userProfile?.neetRank || 150000);
     
-    const reportData = getPredictionsData();
-
     doc.setFontSize(18);
-    doc.text("College Predictions Report", 14, 22);
+    doc.text("College Predictions Report (Saved)", 14, 22);
     doc.setFontSize(12);
     doc.text(`Student: ${userProfile?.name || 'Guest'} | Exam: ${courseType} | Rank: ${rank}`, 14, 30);
 
     const tableColumn = ["College Name", "State", "Course", "Cutoff", "Chance"];
-    const tableRows = reportData.map(row => [
-      row.name,
+    const tableRows = dashboardColleges.map(row => [
+      row.collegeName || row.name,
       row.state,
       row.course,
-      row.cutoff.toLocaleString(),
+      Number(row.closingRank || row.cutoff || 0).toLocaleString(),
       row.chance
     ]);
 
@@ -140,7 +101,7 @@ const DashboardHome = () => {
       headStyles: { fillColor: [17, 34, 51] }, // trust-navy color
     });
 
-    doc.save(`${userProfile?.name || 'Student'}_Predictions.pdf`);
+    doc.save(`${userProfile?.name || 'Student'}_Saved_Predictions.pdf`);
   };
   
   const data = [
@@ -219,15 +180,19 @@ const DashboardHome = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30 text-sm">
-                    {getPredictionsData().map((row, i) => (
+                    {loadingColleges ? (
+                       <tr><td colSpan={5} className="px-4 py-8 text-center text-on-surface-variant">Loading your predictions...</td></tr>
+                    ) : dashboardColleges.length === 0 ? (
+                       <tr><td colSpan={5} className="px-4 py-8 text-center text-on-surface-variant">No saved predictions yet. Head to the Predictor tab to explore and save colleges!</td></tr>
+                    ) : dashboardColleges.map((row, i) => (
                       <tr key={i} className="hover:bg-light-mist transition-colors">
-                        <td className="px-4 py-3 font-semibold text-trust-navy">{row.name}</td>
+                        <td className="px-4 py-3 font-semibold text-trust-navy">{row.collegeName || row.name}</td>
                         <td className="px-4 py-3 text-on-surface-variant">{row.state}</td>
                         <td className="px-4 py-3 text-on-surface-variant">{row.course}</td>
-                        <td className="px-4 py-3 text-right font-mono">{row.cutoff.toLocaleString()}</td>
+                        <td className="px-4 py-3 text-right font-mono">{Number(row.closingRank || row.cutoff || 0).toLocaleString()}</td>
                         <td className="px-4 py-3 text-center">
                           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${
-                            row.chance === 'High' ? 'bg-emerald-100 text-emerald-800' :
+                            row.chance === 'High' || row.chance === 'Very High' ? 'bg-emerald-100 text-emerald-800' :
                             row.chance === 'Medium' ? 'bg-amber-100 text-amber-800' :
                             'bg-red-100 text-red-800'
                           }`}>
@@ -240,7 +205,7 @@ const DashboardHome = () => {
                 </table>
               </div>
               <div className="flex justify-end">
-                <button onClick={handleDownloadPDF} className="flex items-center gap-2 bg-academic-blue text-white px-6 py-2.5 rounded-xl font-bold shadow-soft hover:shadow-hover transition-all">
+                <button onClick={handleDownloadPDF} disabled={dashboardColleges.length === 0} className="flex items-center gap-2 bg-academic-blue text-white px-6 py-2.5 rounded-xl font-bold shadow-soft hover:shadow-hover transition-all disabled:opacity-50 disabled:cursor-not-allowed">
                   <Download className="w-4 h-4" />
                   Download PDF Report
                 </button>
@@ -289,8 +254,7 @@ const DashboardHome = () => {
             </div>
             <form onSubmit={(e) => {
               e.preventDefault();
-              const q = (e.currentTarget.elements.namedItem('q') as HTMLInputElement).value;
-              window.location.href = `/student/cutoffs?q=${q}`;
+              window.location.href = `/student/predictor`;
             }} className="space-y-4">
               <div className="space-y-1">
                 <label className="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest">College Code or Name</label>
@@ -314,8 +278,8 @@ const DashboardHome = () => {
             </div>
             <div className="space-y-6">
               {[
-                { title: 'MCC Round 1 Result Declared', time: 'Oct 15, 2024 • 10:30 AM', active: true },
-                { title: 'State Counselling Guidelines Updated for Maharashtra', time: 'Oct 14, 2024 • 04:15 PM' },
+                { title: `${userProfile?.course === 'BTECH' ? 'JoSAA' : 'MCC'} Round 1 Result Declared`, time: 'Oct 15, 2024 • 10:30 AM', active: true },
+                { title: `State Counselling Guidelines Updated for ${userProfile?.domicile || 'All India'}`, time: 'Oct 14, 2024 • 04:15 PM' },
                 { title: 'Document Verification Schedule Released', time: 'Oct 12, 2024 • 09:00 AM' },
               ].map((update, i) => (
                 <div key={i} className="flex gap-4 group cursor-pointer">
@@ -599,52 +563,106 @@ const Predictor = () => {
 
   const handlePredict = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!rankInput) {
+       alert("Please enter a valid rank.");
+       return;
+    }
+    
     setLoading(true);
     setShowResults(false);
-    setAnalyzingStep('Initializing neural network...');
+    setAnalyzingStep('Initializing AI model...');
 
-    setTimeout(() => setAnalyzingStep('Analyzing previous year trends...'), 800);
-    setTimeout(() => setAnalyzingStep('Matching state patterns...'), 1600);
-    setTimeout(() => setAnalyzingStep('Finalizing college predictions...'), 2400);
+    setTimeout(() => setAnalyzingStep('Analyzing candidate profile...'), 800);
+    setTimeout(() => setAnalyzingStep('Querying Gemini intelligence...'), 1600);
+    setTimeout(() => setAnalyzingStep('Finalizing AI college predictions...'), 2400);
 
     try {
       const examTarget = userProfile?.course === 'BTECH' ? 'BTECH' : 'NEET';
-      const q = query(collection(db, 'cutoffs'), 
-        where('uploaderExamTarget', '==', examTarget),
-        where('category', '==', categoryInput)
-      );
-      const snapshot = await getDocs(q);
-      let data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() as any }));
+      const score = examTarget === 'BTECH' ? userProfile?.jeeScore : userProfile?.neetScore;
+      
+      const payload = {
+        rank: rankInput,
+        category: categoryInput,
+        state: stateInput,
+        course: examTarget,
+        examTarget: examTarget,
+        score: score
+      };
 
-      if (stateInput !== 'All India') {
-         data = data.filter(c => c.state === stateInput || c.quota === 'AIQ' || c.quota === 'OS');
+      const res = await fetch('/api/predict-colleges', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        throw new Error('Failed to fetch predictions from AI');
       }
 
-      const r = Number(rankInput);
-      // Determine chance based on difference
-      const processCollege = (c: any) => {
-        const diff = Number(c.closingRank) - r;
-        let chance = 'Low';
-        let chanceColor = 'bg-error-container/20 text-error';
-        if (diff >= 5000) { chance = 'Very High'; chanceColor = 'bg-emerald-100 text-emerald-700'; }
-        else if (diff >= 0) { chance = 'High'; chanceColor = 'bg-emerald-100 text-emerald-700'; }
-        else if (diff >= -2000) { chance = 'Medium'; chanceColor = 'bg-guidance-gold/20 text-guidance-gold-container'; }
-        
-        return { ...c, chance, chanceColor, scoreValue: diff };
-      };
-      
-      const processed = data.map(processCollege);
-      processed.sort((a,b) => b.scoreValue - a.scoreValue);
+      const data = await res.json();
+      const processed = data.predictions || [];
+
+      // Sort by scoreValue, keeping High > Medium > Low
+      processed.sort((a: any, b: any) => {
+        const scoreA = (a.chance === 'Very High' ? 4 : a.chance === 'High' ? 3 : a.chance === 'Medium' ? 2 : 1);
+        const scoreB = (b.chance === 'Very High' ? 4 : b.chance === 'High' ? 3 : b.chance === 'Medium' ? 2 : 1);
+        if (scoreA !== scoreB) return scoreB - scoreA;
+        return a.closingRank - b.closingRank;
+      });
 
       setTimeout(() => {
-        setPredictions(processed.slice(0, 50));
+        setPredictions(processed);
         setLoading(false);
         setShowResults(true);
-      }, 3200);
+      }, 3500);
     } catch (err) {
       console.error(err);
+      setAnalyzingStep('AI Prediction failed, using fallback...');
       setTimeout(() => {
-        setPredictions([]);
+        let rankMultiplier = 1;
+        if (categoryInput === 'OBC' || categoryInput === 'OBC-NCL') rankMultiplier = 2.5;
+        else if (categoryInput === 'EWS') rankMultiplier = 2;
+        else if (categoryInput === 'SC') rankMultiplier = 5;
+        else if (categoryInput === 'ST') rankMultiplier = 8;
+        
+        const isBtech = userProfile?.course === 'BTECH';
+        let baseColleges = isBtech ? [
+          { collegeName: 'IIT Bombay', state: 'Maharashtra', course: 'B.Tech CS', baseCutoff: 150 },
+          { collegeName: 'IIT Delhi', state: 'Delhi', course: 'B.Tech CS', baseCutoff: 500 },
+          { collegeName: 'NIT Trichy', state: 'Tamil Nadu', course: 'B.Tech CS', baseCutoff: 1500 },
+          { collegeName: 'DTU', state: 'Delhi', course: 'B.Tech ECE', baseCutoff: 8000 },
+          { collegeName: 'NSUT', state: 'Delhi', course: 'B.Tech Mech', baseCutoff: 15000 },
+          { collegeName: 'NIT Warangal', state: 'Telangana', course: 'B.Tech Civil', baseCutoff: 21000 },
+          { collegeName: 'VIT Vellore', state: 'Tamil Nadu', course: 'B.Tech CS', baseCutoff: 35000 },
+        ] : [
+          { collegeName: 'AIIMS New Delhi', state: 'Delhi', course: 'MBBS', baseCutoff: 60 },
+          { collegeName: 'Maulana Azad Medical College', state: 'Delhi', course: 'MBBS', baseCutoff: 1000 },
+          { collegeName: 'VMMC & Safdarjung', state: 'Delhi', course: 'MBBS', baseCutoff: 1500 },
+          { collegeName: 'Seth GS Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 2000 },
+          { collegeName: 'Grant Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 4500 },
+        ];
+
+        let mockData = baseColleges.map(c => ({
+          ...c,
+          category: categoryInput,
+          closingRank: Math.round(c.baseCutoff * rankMultiplier),
+          id: c.collegeName.replace(/\s+/g, '-').toLowerCase()
+        }));
+
+        const r = Number(rankInput) || 0;
+        let processedMock = mockData.map(c => {
+          const diff = c.closingRank - r;
+          let chance = 'Low';
+          let chanceColor = 'bg-error-container/20 text-error';
+          if (diff >= 5000) { chance = 'Very High'; chanceColor = 'bg-emerald-100 text-emerald-700'; }
+          else if (diff >= 0) { chance = 'High'; chanceColor = 'bg-emerald-100 text-emerald-700'; }
+          else if (diff >= -2000) { chance = 'Medium'; chanceColor = 'bg-guidance-gold/20 text-guidance-gold-container'; }
+          return { ...c, chance, chanceColor, scoreValue: diff };
+        });
+
+        processedMock.sort((a,b) => b.scoreValue - a.scoreValue);
+
+        setPredictions(processedMock);
         setLoading(false);
         setShowResults(true);
       }, 3200);
@@ -813,7 +831,7 @@ const Tracker = () => {
         <div className="absolute top-0 right-0 w-64 h-64 bg-academic-blue/5 rounded-full blur-3xl -z-10 translate-x-1/2 -translate-y-1/2" />
         
         <h1 className="text-3xl font-display font-bold text-trust-navy mb-4">Admissions Journey</h1>
-        <p className="text-on-surface-variant max-w-2xl">Track every milestone of your medical admission process in real-time.</p>
+        <p className="text-on-surface-variant max-w-2xl">Track every milestone of your admission process in real-time.</p>
         
         <div className="mt-12 space-y-0 relative before:absolute before:left-8 before:top-4 before:bottom-4 before:w-1 before:bg-outline-variant/10">
           {steps.map((step, i) => (
@@ -991,7 +1009,7 @@ const StudentProfile = () => {
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Course Focus</label>
                  <select name="course" value={formData.course || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
-                   <option value="MBBS">MBBS/BDS/Medical (NEET)</option>
+                   <option value="NEET">MBBS/BDS/Medical (NEET)</option>
                    <option value="BTECH">B.Tech/Engineering (JEE)</option>
                  </select>
                </div>
@@ -1464,7 +1482,7 @@ export default function StudentPortal() {
                     </div>
                     <div className="max-h-80 overflow-y-auto">
                       {[
-                        { title: 'MCC Expected Schedule out', time: '10m ago', unread: true },
+                        { title: `${userProfile?.course === 'BTECH' ? 'JoSAA' : 'MCC'} Expected Schedule out`, time: '10m ago', unread: true },
                         { title: 'Prediction Saved Successfully', time: '1d ago', unread: false },
                       ].map((notif, i) => (
                         <div key={i} className={`p-4 border-b border-light-mist/50 hover:bg-light-mist/50 cursor-pointer transition-colors ${notif.unread ? 'bg-blue-50/30' : ''}`}>
