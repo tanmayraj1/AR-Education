@@ -53,28 +53,70 @@ import autoTable from 'jspdf-autotable';
 const DashboardHome = () => {
   const { userProfile } = useAuth();
   
+  const getPredictionsData = () => {
+    const courseType = userProfile?.course || 'NEET';
+    const rank = courseType === 'BTECH' ? (userProfile?.jeeRank || 250000) : (userProfile?.neetRank || 150000);
+    
+    // Using a basic multiplier based on category for mock cutoffs
+    let rankMultiplier = 1;
+    if (userProfile?.category === 'OBC-NCL') rankMultiplier = 2.5;
+    else if (userProfile?.category === 'EWS') rankMultiplier = 2;
+    else if (userProfile?.category === 'SC') rankMultiplier = 5;
+    else if (userProfile?.category === 'ST') rankMultiplier = 8;
+    
+    let data = [];
+    if (courseType === 'BTECH') {
+      const baseColleges = [
+        { name: 'IIT Bombay', state: 'Maharashtra', course: 'B.Tech CS', baseCutoff: 150 },
+        { name: 'IIT Delhi', state: 'Delhi', course: 'B.Tech CS', baseCutoff: 500 },
+        { name: 'NIT Trichy', state: 'Tamil Nadu', course: 'B.Tech CS', baseCutoff: 1500 },
+        { name: 'DTU', state: 'Delhi', course: 'B.Tech ECE', baseCutoff: 8000 },
+        { name: 'NSUT', state: 'Delhi', course: 'B.Tech Mech', baseCutoff: 15000 },
+        { name: 'NIT Warangal', state: 'Telangana', course: 'B.Tech Civil', baseCutoff: 21000 },
+        { name: 'BIT Mesra', state: 'Jharkhand', course: 'B.Tech Civil', baseCutoff: 35000 },
+        { name: 'VIT Vellore', state: 'Tamil Nadu', course: 'B.Tech Mech', baseCutoff: 55000 },
+      ];
+      data = baseColleges.map(c => ({
+        ...c,
+        cutoff: Math.round(c.baseCutoff * rankMultiplier)
+      }));
+    } else {
+      const baseColleges = [
+        { name: 'AIIMS New Delhi', state: 'Delhi', course: 'MBBS', baseCutoff: 60 },
+        { name: 'Maulana Azad Medical College', state: 'Delhi', course: 'MBBS', baseCutoff: 1000 },
+        { name: 'VMMC & Safdarjung', state: 'Delhi', course: 'MBBS', baseCutoff: 1500 },
+        { name: 'Seth GS Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 2000 },
+        { name: 'AFMC Pune', state: 'Maharashtra', course: 'MBBS', baseCutoff: 3000 },
+        { name: 'Grant Medical College', state: 'Maharashtra', course: 'MBBS', baseCutoff: 4500 },
+        { name: 'Stanley Medical College', state: 'Tamil Nadu', course: 'MBBS', baseCutoff: 8500 },
+        { name: 'GMC Nagpur', state: 'Maharashtra', course: 'MBBS', baseCutoff: 12000 },
+      ];
+      data = baseColleges.map(c => ({
+        ...c,
+        cutoff: Math.round(c.baseCutoff * rankMultiplier)
+      }));
+    }
+    
+    // Calculate chance and sort
+    return data.map(c => {
+      let chance = 'Low';
+      if (rank <= c.cutoff) chance = 'High';
+      else if (rank <= c.cutoff * 1.5) chance = 'Medium';
+      return { ...c, chance };
+    }).sort((a, b) => {
+      const scoreA = (a.chance === 'High' ? 3 : a.chance === 'Medium' ? 2 : 1);
+      const scoreB = (b.chance === 'High' ? 3 : b.chance === 'Medium' ? 2 : 1);
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return a.cutoff - b.cutoff;
+    }).slice(0, 5); // Show top 5 best matches
+  };
+
   const handleDownloadPDF = () => {
     const doc = new jsPDF();
     const courseType = userProfile?.course || 'NEET';
     const rank = courseType === 'BTECH' ? (userProfile?.jeeRank || 250000) : (userProfile?.neetRank || 150000);
-    const isGen = !userProfile?.category || userProfile.category === 'General';
     
-    let reportData = [];
-    if (courseType === 'BTECH') {
-      reportData = [
-        { name: 'NIT Trichy', state: 'Tamil Nadu', course: 'B.Tech CS', cutoff: isGen ? 1500 : 4500, chance: rank <= (isGen ? 1500 : 4500) ? 'High' : (rank <= (isGen ? 3000 : 6000) ? 'Medium' : 'Low') },
-        { name: 'DTU', state: 'Delhi', course: 'B.Tech ECE', cutoff: isGen ? 8000 : 15000, chance: rank <= (isGen ? 8000 : 15000) ? 'High' : (rank <= (isGen ? 12000 : 20000) ? 'Medium' : 'Low') },
-        { name: 'NSUT', state: 'Delhi', course: 'B.Tech Mech', cutoff: isGen ? 15000 : 25000, chance: rank <= (isGen ? 15000 : 25000) ? 'High' : (rank <= (isGen ? 20000 : 35000) ? 'Medium' : 'Low') },
-        { name: 'BIT Mesra', state: 'Jharkhand', course: 'B.Tech Civil', cutoff: isGen ? 35000 : 55000, chance: rank <= (isGen ? 35000 : 55000) ? 'High' : (rank <= (isGen ? 45000 : 65000) ? 'Medium' : 'Low') }
-      ];
-    } else {
-      reportData = [
-        { name: 'AIIMS New Delhi', state: 'Delhi', course: 'MBBS', cutoff: isGen ? 60 : 250, chance: rank <= (isGen ? 60 : 250) ? 'High' : 'Low' },
-        { name: 'Maulana Azad Medical College', state: 'Delhi', course: 'MBBS', cutoff: isGen ? 1000 : 3500, chance: rank <= (isGen ? 1000 : 3500) ? 'High' : (rank <= (isGen ? 2000 : 5000) ? 'Medium' : 'Low') },
-        { name: 'Seth GS Medical College', state: 'Maharashtra', course: 'MBBS', cutoff: isGen ? 1500 : 4500, chance: rank <= (isGen ? 1500 : 4500) ? 'High' : (rank <= (isGen ? 2500 : 6000) ? 'Medium' : 'Low') },
-        { name: 'Grant Medical College', state: 'Maharashtra', course: 'MBBS', cutoff: isGen ? 3000 : 8000, chance: rank <= (isGen ? 3000 : 8000) ? 'High' : (rank <= (isGen ? 4500 : 10000) ? 'Medium' : 'Low') }
-      ];
-    }
+    const reportData = getPredictionsData();
 
     doc.setFontSize(18);
     doc.text("College Predictions Report", 14, 22);
@@ -177,28 +219,7 @@ const DashboardHome = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-outline-variant/30 text-sm">
-                    {(function() {
-                      const courseType = userProfile?.course || 'NEET';
-                      const rank = courseType === 'BTECH' ? (userProfile?.jeeRank || 250000) : (userProfile?.neetRank || 150000);
-                      const isGen = !userProfile?.category || userProfile.category === 'General';
-                      
-                      // Mock generation based on rank
-                      if (courseType === 'BTECH') {
-                        return [
-                          { name: 'NIT Trichy', state: 'Tamil Nadu', course: 'B.Tech CS', cutoff: isGen ? 1500 : 4500, chance: rank <= (isGen ? 1500 : 4500) ? 'High' : (rank <= (isGen ? 3000 : 6000) ? 'Medium' : 'Low') },
-                          { name: 'DTU', state: 'Delhi', course: 'B.Tech ECE', cutoff: isGen ? 8000 : 15000, chance: rank <= (isGen ? 8000 : 15000) ? 'High' : (rank <= (isGen ? 12000 : 20000) ? 'Medium' : 'Low') },
-                          { name: 'NSUT', state: 'Delhi', course: 'B.Tech Mech', cutoff: isGen ? 15000 : 25000, chance: rank <= (isGen ? 15000 : 25000) ? 'High' : (rank <= (isGen ? 20000 : 35000) ? 'Medium' : 'Low') },
-                          { name: 'BIT Mesra', state: 'Jharkhand', course: 'B.Tech Civil', cutoff: isGen ? 35000 : 55000, chance: rank <= (isGen ? 35000 : 55000) ? 'High' : (rank <= (isGen ? 45000 : 65000) ? 'Medium' : 'Low') }
-                        ];
-                      } else {
-                        return [
-                          { name: 'AIIMS New Delhi', state: 'Delhi', course: 'MBBS', cutoff: isGen ? 60 : 250, chance: rank <= (isGen ? 60 : 250) ? 'High' : 'Low' },
-                          { name: 'Maulana Azad Medical College', state: 'Delhi', course: 'MBBS', cutoff: isGen ? 1000 : 3500, chance: rank <= (isGen ? 1000 : 3500) ? 'High' : (rank <= (isGen ? 2000 : 5000) ? 'Medium' : 'Low') },
-                          { name: 'Seth GS Medical College', state: 'Maharashtra', course: 'MBBS', cutoff: isGen ? 1500 : 4500, chance: rank <= (isGen ? 1500 : 4500) ? 'High' : (rank <= (isGen ? 2500 : 6000) ? 'Medium' : 'Low') },
-                          { name: 'Grant Medical College', state: 'Maharashtra', course: 'MBBS', cutoff: isGen ? 3000 : 8000, chance: rank <= (isGen ? 3000 : 8000) ? 'High' : (rank <= (isGen ? 4500 : 10000) ? 'Medium' : 'Low') }
-                        ];
-                      }
-                    })().map((row, i) => (
+                    {getPredictionsData().map((row, i) => (
                       <tr key={i} className="hover:bg-light-mist transition-colors">
                         <td className="px-4 py-3 font-semibold text-trust-navy">{row.name}</td>
                         <td className="px-4 py-3 text-on-surface-variant">{row.state}</td>
@@ -851,7 +872,55 @@ const Tracker = () => {
 // --- Main Student Portal Layout ---
 
 const StudentProfile = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
+  const [formData, setFormData] = useState<any>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  
+  useEffect(() => {
+    if (userProfile) {
+      setFormData(userProfile);
+    }
+  }, [userProfile]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
+
+  const handleSave = async () => {
+    if (!currentUser) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const userRef = doc(db, 'users', currentUser.uid);
+      await updateDoc(userRef, {
+        name: formData.name || null,
+        email: formData.email || null,
+        mobile: formData.mobile || null,
+        gender: formData.gender || null,
+        course: formData.course || null,
+        neetRank: formData.neetRank ? Number(formData.neetRank) : null,
+        jeeRank: formData.jeeRank ? Number(formData.jeeRank) : null,
+        neetScore: formData.neetScore ? Number(formData.neetScore) : null,
+        jeeScore: formData.jeeScore ? Number(formData.jeeScore) : null,
+        category: formData.category || null,
+        domicile: formData.domicile || null,
+      });
+      setSaveSuccess(true);
+      setTimeout(() => setSaveSuccess(false), 3000);
+    } catch (error) {
+      console.error("Error updating profile:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDiscard = () => {
+    if (userProfile) {
+      setFormData(userProfile);
+    }
+  };
   
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -866,17 +935,20 @@ const StudentProfile = () => {
             </button>
           </div>
           <div>
-            <h1 className="text-3xl font-display font-bold text-trust-navy">{userProfile?.name || 'User'}</h1>
+            <h1 className="text-3xl font-display font-bold text-trust-navy">{formData.name || 'User'}</h1>
             <p className="text-on-surface-variant flex items-center gap-2 mt-1 font-body">
-              <GraduationCap className="w-4 h-4 text-academic-blue" /> {userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} 2024 Aspirant <span className="opacity-50">•</span> <MapPin className="w-4 h-4 ml-1 text-academic-blue" /> Delhi, India
+              <GraduationCap className="w-4 h-4 text-academic-blue" /> {formData.course === 'BTECH' ? 'JEE' : 'NEET'} 2024 Aspirant <span className="opacity-50">•</span> <MapPin className="w-4 h-4 ml-1 text-academic-blue" /> {formData.domicile || 'Location'}
             </p>
           </div>
         </div>
-        <div className="flex gap-3">
-          <button className="px-5 py-2.5 bg-white border border-outline-variant/50 text-trust-navy font-bold rounded-xl shadow-soft hover:bg-light-mist hover:text-trust-navy transition-all active:scale-95 transform hover:-translate-y-0.5">Discard</button>
-          <button className="px-5 py-2.5 bg-academic-blue text-white font-bold rounded-xl shadow-soft hover:shadow-hover transition-all active:scale-95 transform hover:-translate-y-0.5 flex items-center gap-2">
-             Save Changes
-          </button>
+        <div className="flex flex-col items-end gap-2">
+          {saveSuccess && <span className="text-sm text-emerald-600 font-bold animate-pulse">Profile updated successfully!</span>}
+          <div className="flex gap-3">
+            <button onClick={handleDiscard} className="px-5 py-2.5 bg-white border border-outline-variant/50 text-trust-navy font-bold rounded-xl shadow-soft hover:bg-light-mist hover:text-trust-navy transition-all active:scale-95 transform hover:-translate-y-0.5">Discard</button>
+            <button onClick={handleSave} disabled={isSaving} className="px-5 py-2.5 bg-academic-blue text-white font-bold rounded-xl shadow-soft hover:shadow-hover transition-all active:scale-95 transform hover:-translate-y-0.5 flex items-center gap-2 disabled:opacity-75">
+              {isSaving ? 'Saving...' : 'Save Changes'}
+            </button>
+          </div>
         </div>
       </section>
 
@@ -887,23 +959,28 @@ const StudentProfile = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Full Name *</label>
-                 <input type="text" value={userProfile?.name || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <input type="text" name="name" value={formData.name || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Email *</label>
-                 <input type="email" value={userProfile?.email || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <input type="email" name="email" value={formData.email || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Mobile Number *</label>
-                 <input type="tel" value={userProfile?.mobile || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <input type="tel" name="mobile" value={formData.mobile || ''} onChange={handleChange} placeholder="+91" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Gender</label>
-                 <input type="text" value={userProfile?.gender || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <select name="gender" value={formData.gender || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
+                   <option value="" disabled>Select Gender</option>
+                   <option value="Male">Male</option>
+                   <option value="Female">Female</option>
+                   <option value="Other">Other</option>
+                 </select>
                </div>
                <div className="col-span-1 md:col-span-2 space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Permanent Address</label>
-                 <textarea rows={3} defaultValue="" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue resize-none transition-colors" />
+                 <textarea rows={3} defaultValue="" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue resize-none transition-colors" placeholder="Enter your full address" />
                </div>
              </div>
           </section>
@@ -913,23 +990,52 @@ const StudentProfile = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Course Focus</label>
-                 <input type="text" value={userProfile?.course === 'BTECH' ? 'B.Tech' : 'MBBS/BDS/Medical'} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <select name="course" value={formData.course || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
+                   <option value="MBBS">MBBS/BDS/Medical (NEET)</option>
+                   <option value="BTECH">B.Tech/Engineering (JEE)</option>
+                 </select>
                </div>
-               <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} Rank</label>
-                 <input type="text" value={userProfile?.course === 'BTECH' ? userProfile?.jeeRank || '' : userProfile?.neetRank || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} Score</label>
-                 <input type="text" value={userProfile?.course === 'BTECH' ? userProfile?.jeeScore || '' : userProfile?.neetScore || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
-               </div>
+               {formData.course === 'BTECH' ? (
+                 <>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">JEE Rank</label>
+                     <input type="number" name="jeeRank" value={formData.jeeRank || ''} onChange={handleChange} placeholder="e.g. 15000" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">JEE Score</label>
+                     <input type="number" name="jeeScore" value={formData.jeeScore || ''} onChange={handleChange} placeholder="e.g. 180" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                   </div>
+                 </>
+               ) : (
+                 <>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">NEET Rank</label>
+                     <input type="number" name="neetRank" value={formData.neetRank || ''} onChange={handleChange} placeholder="e.g. 45000" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                   </div>
+                   <div className="space-y-2">
+                     <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">NEET Score</label>
+                     <input type="number" name="neetScore" value={formData.neetScore || ''} onChange={handleChange} placeholder="e.g. 620" className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                   </div>
+                 </>
+               )}
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Category</label>
-                 <input type="text" value={userProfile?.category || 'General'} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <select name="category" value={formData.category || 'General'} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
+                   <option value="General">General / Unreserved</option>
+                   <option value="OBC-NCL">OBC-NCL</option>
+                   <option value="SC">SC</option>
+                   <option value="ST">ST</option>
+                   <option value="EWS">EWS</option>
+                 </select>
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Domicile State</label>
-                 <input type="text" value={userProfile?.domicile || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
+                 <select name="domicile" value={formData.domicile || ''} onChange={handleChange} className="w-full bg-white border border-outline-variant/50 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
+                   <option value="" disabled>Select State</option>
+                   {INDIAN_STATES.map(state => (
+                     <option key={state} value={state}>{state}</option>
+                   ))}
+                 </select>
                </div>
              </div>
           </section>
