@@ -249,11 +249,7 @@ export default function Auth() {
     } else {
       try {
         await signUpWithEmail(email, password, name, isStudentLogin ? 'student' : 'admin');
-        setAuthMode('login');
-        setEmail('');
-        setPassword('');
-        setName('');
-        setSuccessMsg("Account created! Please check your email to verify before logging in.");
+        // The user is immediately logged in via Firebase Auth; the redirect inside useEffect will handle the rest.
       } catch (error: any) {
         setErrorMsg(error.message || 'Failed to sign up');
       }

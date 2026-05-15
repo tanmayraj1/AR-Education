@@ -41,13 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       if (user) {
-        // If email password user hasn't verified, log them out.
-        if (!user.emailVerified && user.providerData.some(p => p.providerId === 'password') && user.email !== 'admin@areduindia.com' && user.email !== 'systemadmin@areduindia.com') {
-           setCurrentUser(null);
-           setUserProfile(null);
-           setLoading(false);
-           return;
-        }
+        // Removed email verification check to allow immediate access
         setCurrentUser(user);
         try {
           const docRef = doc(db, 'users', user.uid);
@@ -118,10 +112,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      if (!result.user.emailVerified && email !== 'admin@areduindia.com') {
-        await firebaseSignOut(auth);
-        throw new Error("Please verify your email address before signing in.");
-      }
+      // if (!result.user.emailVerified && email !== 'admin@areduindia.com') {
+      //   await firebaseSignOut(auth);
+      //   throw new Error("Please verify your email address before signing in.");
+      // }
       
       const docRef = doc(db, 'users', result.user.uid);
       const docSnap = await getDoc(docRef);
@@ -162,11 +156,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const docRef = doc(db, 'users', user.uid);
       await setDoc(docRef, newUserProfile);
       
-      if (email !== 'admin@areduindia.com') {
-        await sendEmailVerification(user);
-        await firebaseSignOut(auth);
-        throw new Error("Account created! Please check your email to verify before logging in.");
-      }
+      // if (email !== 'admin@areduindia.com') {
+      //   await sendEmailVerification(user);
+      //   await firebaseSignOut(auth);
+      //   throw new Error("Account created! Please check your email to verify before logging in.");
+      // }
     } catch (error) {
       console.error("Sign up failed", error);
       throw error;
