@@ -568,6 +568,22 @@ const Predictor = () => {
        return;
     }
     
+    // Auto-save the input to user profile if modified
+    if (currentUser) {
+      try {
+        const userRef = doc(db, 'users', currentUser.uid);
+        const examTarget = userProfile?.course === 'BTECH' ? 'BTECH' : 'NEET';
+        const parsedRank = rankInput ? Number(rankInput.toString().replace(/,/g, '')) || 0 : 0;
+        await updateDoc(userRef, {
+          category: categoryInput,
+          domicile: stateInput,
+          [examTarget === 'BTECH' ? 'jeeRank' : 'neetRank']: parsedRank
+        });
+      } catch (err) {
+        console.error("Failed to auto-save profile data", err);
+      }
+    }
+
     setLoading(true);
     setShowResults(false);
     setAnalyzingStep('Initializing AI model...');
@@ -912,16 +928,17 @@ const StudentProfile = () => {
     setSaveSuccess(false);
     try {
       const userRef = doc(db, 'users', currentUser.uid);
+      const safeParse = (val: any) => val ? Number(val.toString().replace(/,/g, '')) || 0 : null;
       await updateDoc(userRef, {
         name: formData.name || null,
         email: formData.email || null,
         mobile: formData.mobile || null,
         gender: formData.gender || null,
         course: formData.course || null,
-        neetRank: formData.neetRank ? Number(formData.neetRank) : null,
-        jeeRank: formData.jeeRank ? Number(formData.jeeRank) : null,
-        neetScore: formData.neetScore ? Number(formData.neetScore) : null,
-        jeeScore: formData.jeeScore ? Number(formData.jeeScore) : null,
+        neetRank: safeParse(formData.neetRank),
+        jeeRank: safeParse(formData.jeeRank),
+        neetScore: safeParse(formData.neetScore),
+        jeeScore: safeParse(formData.jeeScore),
         category: formData.category || null,
         domicile: formData.domicile || null,
       });
@@ -1140,12 +1157,14 @@ const OnboardingOverlay = ({ onComplete }: { onComplete: () => void }) => {
   
   // Form State
   const [name, setName] = React.useState(userProfile?.name || '');
-  const [mobile, setMobile] = React.useState('');
-  const [gender, setGender] = React.useState('');
-  const [rank, setRank] = React.useState('');
-  const [score, setScore] = React.useState('');
-  const [category, setCategory] = React.useState('');
-  const [domicile, setDomicile] = React.useState('');
+  const [mobile, setMobile] = React.useState(userProfile?.mobile || '');
+  const [gender, setGender] = React.useState(userProfile?.gender || '');
+  const prevRank = userProfile?.course === 'BTECH' ? userProfile?.jeeRank : userProfile?.neetRank;
+  const [rank, setRank] = React.useState(prevRank ? String(prevRank) : '');
+  const prevScore = userProfile?.course === 'BTECH' ? userProfile?.jeeScore : userProfile?.neetScore;
+  const [score, setScore] = React.useState(prevScore ? String(prevScore) : '');
+  const [category, setCategory] = React.useState(userProfile?.category || '');
+  const [domicile, setDomicile] = React.useState(userProfile?.domicile || '');
   const [isSubmitting, setIsSubmitting] = React.useState(false);
 
   const togglePriority = (p: string) => {
@@ -1171,21 +1190,22 @@ const OnboardingOverlay = ({ onComplete }: { onComplete: () => void }) => {
     setIsSubmitting(true);
     try {
        const userDoc = doc(db, 'users', userProfile.uid);
+       const safeParse = (val: any) => val ? Number(val.toString().replace(/,/g, '')) || 0 : 0;
        await setDoc(userDoc, {
-          name: name || userProfile.name,
+          name: name || userProfile.name || 'Student',
           mobile,
           gender,
           course: calculateCourseEnum(),
           category: category || 'General',
-          domicile: domicile || 'Delhi',
-          [calculateCourseEnum() === 'BTECH' ? 'jeeRank' : 'neetRank']: Number(rank) || 0,
-          [calculateCourseEnum() === 'BTECH' ? 'jeeScore' : 'neetScore']: Number(score) || 0,
+          domicile: domicile || 'All States',
+          [calculateCourseEnum() === 'BTECH' ? 'jeeRank' : 'neetRank']: safeParse(rank),
+          [calculateCourseEnum() === 'BTECH' ? 'jeeScore' : 'neetScore']: safeParse(score),
        }, { merge: true });
        localStorage.setItem('hasCompletedOnboarding', 'true');
        onComplete();
     } catch (error) {
        console.error("Error saving onboarding details", error);
-       // Still complete onboarding so user isn't stuck
+       alert("Failed to save profile. Make sure you are logged in and try again.");
        localStorage.setItem('hasCompletedOnboarding', 'true');
        onComplete();
     } finally {
@@ -1391,6 +1411,7 @@ const OnboardingOverlay = ({ onComplete }: { onComplete: () => void }) => {
 };
 
 export default function StudentPortal() {
+  const { userProfile, signOut } = useAuth();
   const location = useLocation();
   const [showNotifications, setShowNotifications] = React.useState(false);
   const [showProfileMenu, setShowProfileMenu] = React.useState(false);
@@ -1403,9 +1424,13 @@ export default function StudentPortal() {
   }, []);
 
   const [hasOnboarded, setHasOnboarded] = React.useState(() => {
-    return localStorage.getItem('hasCompletedOnboarding') === 'true';
+    const fromStorage = localStorage.getItem('hasCompletedOnboarding') === 'true';
+    const hasData = userProfile?.course && userProfile?.domicile;
+    if (hasData && !fromStorage) {
+      localStorage.setItem('hasCompletedOnboarding', 'true');
+    }
+    return fromStorage || Boolean(hasData);
   });
-  const { userProfile, signOut } = useAuth();
 
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();
