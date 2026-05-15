@@ -76,6 +76,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
+      // Set some custom parameters to force account selection and avoid immediate close issues
+      provider.setCustomParameters({
+        prompt: 'select_account'
+      });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
@@ -97,8 +101,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         setUserProfile(docSnap.data() as UserProfile);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Sign in failed", error);
+      // Alert the exact error to make debugging in production easier
+      const errorMessage = error?.code === 'auth/popup-closed-by-user' 
+          ? "The popup was closed before finishing the sign in." 
+          : error?.message || "An unknown error occurred during sign in.";
+      alert(`Google Sign-In Error: ${errorMessage}`);
       throw error;
     } finally {
       setLoading(false);
