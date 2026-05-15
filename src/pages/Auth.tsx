@@ -288,7 +288,7 @@ export default function Auth() {
             transition={{ delay: 0.1 }}
             className="text-xl text-blue-100 max-w-md font-body"
           >
-            Medical Admissions Excellence. Guiding your journey to top-tier medical institutions.
+            Medical Admissions Excellence. Guiding your journey to top-tier medical institutions. (Live build)
           </motion.p>
         </div>
 
