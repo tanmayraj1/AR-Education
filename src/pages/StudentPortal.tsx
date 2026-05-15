@@ -930,17 +930,17 @@ const StudentProfile = () => {
       const userRef = doc(db, 'users', currentUser.uid);
       const safeParse = (val: any) => val ? Number(val.toString().replace(/,/g, '')) || 0 : null;
       await updateDoc(userRef, {
-        name: formData.name || null,
-        email: formData.email || null,
-        mobile: formData.mobile || null,
-        gender: formData.gender || null,
-        course: formData.course || null,
+        name: formData.name || userProfile?.name || 'Student',
+        email: formData.email || userProfile?.email || `${currentUser.uid}@no-email.areduindia.com`,
+        mobile: formData.mobile || userProfile?.mobile || null,
+        gender: formData.gender || userProfile?.gender || null,
+        course: formData.course || userProfile?.course || null,
         neetRank: safeParse(formData.neetRank),
         jeeRank: safeParse(formData.jeeRank),
         neetScore: safeParse(formData.neetScore),
         jeeScore: safeParse(formData.jeeScore),
-        category: formData.category || null,
-        domicile: formData.domicile || null,
+        category: formData.category || userProfile?.category || null,
+        domicile: formData.domicile || userProfile?.domicile || null,
       });
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 3000);
@@ -1192,6 +1192,9 @@ const OnboardingOverlay = ({ onComplete }: { onComplete: () => void }) => {
        const userDoc = doc(db, 'users', userProfile.uid);
        const safeParse = (val: any) => val ? Number(val.toString().replace(/,/g, '')) || 0 : 0;
        await setDoc(userDoc, {
+          uid: userProfile.uid,
+          role: userProfile.role || 'student',
+          email: userProfile.email || currentUser?.email || `${userProfile.uid}@no-email.areduindia.com`,
           name: name || userProfile.name || 'Student',
           mobile,
           gender,
@@ -1424,13 +1427,25 @@ export default function StudentPortal() {
   }, []);
 
   const [hasOnboarded, setHasOnboarded] = React.useState(() => {
-    const fromStorage = localStorage.getItem('hasCompletedOnboarding') === 'true';
-    const hasData = userProfile?.course && userProfile?.domicile;
-    if (hasData && !fromStorage) {
+    // If they have it in storage, trust it.
+    if (localStorage.getItem('hasCompletedOnboarding') === 'true') {
+      return true;
+    }
+    // Otherwise fallback to checking DB data.
+    const hasData = Boolean(userProfile?.course && userProfile?.domicile);
+    if (hasData) {
+      localStorage.setItem('hasCompletedOnboarding', 'true');
+      return true;
+    }
+    return false;
+  });
+
+  React.useEffect(() => {
+    if (userProfile?.course && userProfile?.domicile && !hasOnboarded) {
+      setHasOnboarded(true);
       localStorage.setItem('hasCompletedOnboarding', 'true');
     }
-    return fromStorage || Boolean(hasData);
-  });
+  }, [userProfile?.course, userProfile?.domicile]);
 
   const handleLogout = async (e: React.MouseEvent) => {
     e.preventDefault();

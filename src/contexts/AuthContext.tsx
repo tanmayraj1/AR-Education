@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           uid: user.uid,
           role: role,
           name: user.displayName || 'Unknown User',
-          email: user.email || '',
+          email: user.email || `${user.uid}@no-email.areduindia.com`,
           createdAt: new Date().toISOString(),
         };
         if (user.photoURL) newUserProfile.photoURL = user.photoURL;

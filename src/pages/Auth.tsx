@@ -205,17 +205,27 @@ export default function Auth() {
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const navigate = useNavigate();
-  const { signInWithGoogle, signInWithEmail, signUpWithEmail, adminBypassLogin, userProfile, currentUser } = useAuth();
+  const { signInWithGoogle, signInWithEmail, signUpWithEmail, adminBypassLogin, userProfile, currentUser, loading } = useAuth();
 
   useEffect(() => {
-    if (userProfile && currentUser) {
+    if (!loading && userProfile && currentUser) {
       if (userProfile.role === 'admin') {
         navigate('/admin');
       } else {
         navigate('/student');
       }
     }
-  }, [userProfile, currentUser, navigate]);
+  }, [userProfile, currentUser, navigate, loading]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-light-mist flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 rounded-full border-4 border-academic-blue border-t-transparent animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   const handleGoogleLogin = async () => {
     setErrorMsg('');
