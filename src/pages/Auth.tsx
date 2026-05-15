@@ -201,6 +201,7 @@ export default function Auth() {
   const [name, setName] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showSubscribe, setShowSubscribe] = useState(false);
+  const [isAuthLoading, setIsAuthLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const navigate = useNavigate();
@@ -219,11 +220,14 @@ export default function Auth() {
   const handleGoogleLogin = async () => {
     setErrorMsg('');
     setSuccessMsg('');
+    setIsAuthLoading(true);
     try {
       await signInWithGoogle(isStudentLogin ? 'student' : 'admin');
+      // Success will redirect via useEffect, avoid setting isAuthLoading to false here to prevent flicker
     } catch (error: any) {
       console.error("Google login error:", error);
       setErrorMsg(error.message || 'Failed to sign in with Google');
+      setIsAuthLoading(false);
     }
   };
 
@@ -231,6 +235,7 @@ export default function Auth() {
     e.preventDefault();
     setErrorMsg('');
     setSuccessMsg('');
+    setIsAuthLoading(true);
     if (authMode === 'login') {
       try {
         await signInWithEmail(email, password);
@@ -245,6 +250,7 @@ export default function Auth() {
           }
         }
         setErrorMsg(error.message || 'Failed to sign in');
+        setIsAuthLoading(false);
       }
     } else {
       try {
@@ -252,12 +258,37 @@ export default function Auth() {
         // The user is immediately logged in via Firebase Auth; the redirect inside useEffect will handle the rest.
       } catch (error: any) {
         setErrorMsg(error.message || 'Failed to sign up');
+        setIsAuthLoading(false);
       }
     }
   };
 
   return (
-    <div className="min-h-screen flex w-full font-sans bg-light-mist">
+    <div className="min-h-screen flex w-full font-sans bg-light-mist relative">
+      <AnimatePresence>
+        {isAuthLoading && (
+          <motion.div 
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }} 
+            className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-light-mist/90 backdrop-blur-sm"
+          >
+            <motion.div 
+              animate={{ scale: [1, 1.1, 1] }} 
+              transition={{ repeat: Infinity, duration: 1.5 }}
+              className="p-4 bg-white rounded-2xl shadow-xl border border-outline-variant/20 mb-6"
+            >
+              <GraduationCap className="w-12 h-12 text-academic-blue" />
+            </motion.div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-trust-navy rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <div className="w-2 h-2 bg-academic-blue rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <div className="w-2 h-2 bg-guidance-gold rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+            </div>
+            <p className="mt-4 font-mono text-sm font-bold tracking-widest text-trust-navy uppercase">Authenticating...</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
       {/* Left Panel - Hero / Brand (Lg and up) */}
       <div className="hidden lg:flex w-[45%] bg-trust-navy-container relative overflow-hidden flex-col justify-between p-16">
         {/* Decorative background pattern */}
@@ -500,6 +531,7 @@ export default function Auth() {
                     type="button"
                     onClick={async (e) => {
                       e.preventDefault();
+                      setIsAuthLoading(true);
                       try {
                         console.log("Starting admin bypass");
                         await adminBypassLogin();
@@ -508,6 +540,7 @@ export default function Auth() {
                       } catch (err: any) {
                         console.error("Admin bypass failed:", err);
                         setErrorMsg('Admin Login failed: ' + (err.message || 'Unknown error'));
+                        setIsAuthLoading(false);
                       }
                     }}
                     className="w-full bg-trust-navy text-white font-mono font-semibold py-4 rounded-xl shadow-soft hover:bg-opacity-90 transition-all flex items-center justify-center gap-2 group mt-8"

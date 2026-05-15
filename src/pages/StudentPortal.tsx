@@ -887,23 +887,23 @@ const StudentProfile = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Full Name *</label>
-                 <input type="text" defaultValue="Aman R." className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                 <input type="text" value={userProfile?.name || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Email *</label>
-                 <input type="email" defaultValue="aman.r@example.com" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                 <input type="email" value={userProfile?.email || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Mobile Number *</label>
-                 <input type="tel" defaultValue="+91 9876543210" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                 <input type="tel" value={userProfile?.mobile || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Date of Birth</label>
-                 <input type="date" defaultValue="2004-05-15" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Gender</label>
+                 <input type="text" value={userProfile?.gender || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="col-span-1 md:col-span-2 space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Permanent Address</label>
-                 <textarea rows={3} defaultValue="12, Safdarjung Enclave, New Delhi, 110029" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue resize-none transition-colors" />
+                 <textarea rows={3} defaultValue="" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue resize-none transition-colors" />
                </div>
              </div>
           </section>
@@ -913,47 +913,23 @@ const StudentProfile = () => {
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Course Focus</label>
-                 <select className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
-                   <option defaultValue="MBBS" selected>MBBS</option>
-                   <option>BDS</option>
-                   <option>BAMS</option>
-                   <option>BHMS</option>
-                 </select>
+                 <input type="text" value={userProfile?.course === 'BTECH' ? 'B.Tech' : 'MBBS/BDS/Medical'} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} Roll Number / Application No.</label>
-                 <input type="text" defaultValue="240510168482" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
+                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} Rank</label>
+                 <input type="text" value={userProfile?.course === 'BTECH' ? userProfile?.jeeRank || '' : userProfile?.neetRank || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Institution / Coaching Name</label>
-                 <input type="text" defaultValue="Aakash Institute, South Ex" className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue transition-colors" />
-               </div>
-               <div className="space-y-2">
-                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">12th Board</label>
-                 <select className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
-                   <option defaultValue="CBSE" selected>CBSE</option>
-                   <option>ICSE</option>
-                   <option>State Board</option>
-                 </select>
+                 <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">{userProfile?.course === 'BTECH' ? 'JEE' : 'NEET'} Score</label>
+                 <input type="text" value={userProfile?.course === 'BTECH' ? userProfile?.jeeScore || '' : userProfile?.neetScore || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Category</label>
-                 <select className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
-                   <option defaultValue="General" selected>General / Unreserved</option>
-                   <option>OBC-NCL</option>
-                   <option>SC</option>
-                   <option>ST</option>
-                   <option>EWS</option>
-                 </select>
+                 <input type="text" value={userProfile?.category || 'General'} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
                <div className="space-y-2">
                  <label className="text-[10px] font-black uppercase tracking-widest text-on-surface-variant">Domicile State</label>
-                 <select className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-academic-blue appearance-none transition-colors">
-                   <option disabled selected>Select State</option>
-                   {INDIAN_STATES.map(state => (
-                     <option key={state} value={state}>{state}</option>
-                   ))}
-                 </select>
+                 <input type="text" value={userProfile?.domicile || ''} readOnly className="w-full bg-light-mist/50 border border-outline-variant/30 rounded-xl px-4 py-3 text-sm focus:outline-none opacity-80 cursor-not-allowed transition-colors" />
                </div>
              </div>
           </section>

@@ -14,8 +14,10 @@ export interface UserProfile {
   jeeScore?: number;
   neetRank?: number;
   jeeRank?: number;
-  category?: 'General' | 'OBC' | 'SC' | 'ST';
+  category?: 'General' | 'OBC-NCL' | 'SC' | 'ST' | 'EWS' | 'OBC' | string;
   domicile?: string;
+  mobile?: string;
+  gender?: string;
   isSubscribed?: boolean;
   createdAt: string;
 }
