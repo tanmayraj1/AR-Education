@@ -45,16 +45,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(user);
         try {
           const docRef = doc(db, 'users', user.uid);
-          const unsubscribeProfile = onSnapshot(docRef, (docSnap) => {
+          // Try to get the doc first before setting up the listener
+          // If it fails with offline, we can still set a fallback profile
+          getDoc(docRef).then(docSnap => {
+            if (docSnap.exists()) {
+              setUserProfile(docSnap.data() as UserProfile);
+            } else {
+              // Construct a basic profile from auth user if it doesn't exist in FS
+              setUserProfile({
+                  uid: user.uid,
+                  email: user.email || '',
+                  name: user.displayName || 'Unknown User',
+                  role: 'student', // Default assumed
+                  createdAt: new Date().toISOString()
+              } as UserProfile);
+            }
+            setLoading(false);
+          }).catch(err => {
+             console.warn("Firestore access failed, using fallback profile", err);
+             setUserProfile({
+                  uid: user.uid,
+                  email: user.email || '',
+                  name: user.displayName || 'Unknown User',
+                  role: 'student', // Default assumed
+                  createdAt: new Date().toISOString()
+              } as UserProfile);
+              setLoading(false);
+          });
+          
+          // Set up snapshot listener in background
+          onSnapshot(docRef, (docSnap) => {
             if (docSnap.exists()) {
               setUserProfile(docSnap.data() as UserProfile);
             }
+          }, (err) => {
+             console.warn("Snapshot listener failed", err);
           });
-          setLoading(false);
-          // Note: we can't easily return unsubscribeProfile from inside this async callback,
-          // so it runs until auth state changes. Alternatively we can store it.
+          
         } catch (error) {
           console.error("Error fetching user profile:", error);
+          // Fallback profile
+          setUserProfile({
+              uid: user.uid,
+              email: user.email || '',
+              name: user.displayName || 'Unknown User',
+              role: 'student',
+              createdAt: new Date().toISOString()
+          } as UserProfile);
           setLoading(false);
         }
       } else {
@@ -70,17 +107,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const provider = new GoogleAuthProvider();
-      // Set some custom parameters to force account selection and avoid immediate close issues
-      provider.setCustomParameters({
-        prompt: 'select_account'
-      });
+      provider.setCustomParameters({ prompt: 'select_account' });
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
       const docRef = doc(db, 'users', user.uid);
-      const docSnap = await getDoc(docRef);
+      let docExists = false;
+      let existingData = null;
+      
+      try {
+        const docSnap = await getDoc(docRef);
+        docExists = docSnap.exists();
+        if (docExists) {
+            existingData = docSnap.data();
+        }
+      } catch (err) {
+        console.warn("Could not fetch user profile during sign in", err);
+      }
 
-      if (!docSnap.exists()) {
+      if (!docExists) {
         const newUserProfile: Partial<UserProfile> = {
           uid: user.uid,
           role: role,
@@ -90,14 +135,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         };
         if (user.photoURL) newUserProfile.photoURL = user.photoURL;
 
-        await setDoc(docRef, newUserProfile);
+        try {
+          await setDoc(docRef, newUserProfile);
+        } catch (err) {
+          console.warn("Could not save new user profile", err);
+        }
         setUserProfile(newUserProfile as UserProfile);
       } else {
-        setUserProfile(docSnap.data() as UserProfile);
+        setUserProfile(existingData as UserProfile);
       }
     } catch (error: any) {
       console.error("Sign in failed", error);
-      // Alert the exact error to make debugging in production easier
       const errorMessage = error?.code === 'auth/popup-closed-by-user' 
           ? "The popup was closed before finishing the sign in." 
           : error?.message || "An unknown error occurred during sign in.";
@@ -112,23 +160,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setLoading(true);
     try {
       const result = await signInWithEmailAndPassword(auth, email, password);
-      // if (!result.user.emailVerified && email !== 'admin@areduindia.com') {
-      //   await firebaseSignOut(auth);
-      //   throw new Error("Please verify your email address before signing in.");
-      // }
+      const user = result.user;
       
-      const docRef = doc(db, 'users', result.user.uid);
-      const docSnap = await getDoc(docRef);
+      const docRef = doc(db, 'users', user.uid);
+      
+      try {
+        const docSnap = await getDoc(docRef);
 
-      if (docSnap.exists()) {
-        const data = docSnap.data() as UserProfile;
-        if (email === 'admin@areduindia.com' && data.role !== 'admin') {
-          data.role = 'admin';
-          await setDoc(docRef, { role: 'admin' }, { merge: true });
+        if (docSnap.exists()) {
+          const data = docSnap.data() as UserProfile;
+          if (email === 'admin@areduindia.com' && data.role !== 'admin') {
+            data.role = 'admin';
+            try { await setDoc(docRef, { role: 'admin' }, { merge: true }); } catch (e) {}
+          }
+          setUserProfile(data);
+        } else {
+           // Provide fallback if auth succeeds but firestore is missing
+           setUserProfile({
+              uid: user.uid,
+              email: user.email || '',
+              name: 'User',
+              role: email === 'admin@areduindia.com' ? 'admin' : 'student',
+              createdAt: new Date().toISOString()
+          } as UserProfile);
         }
-        setUserProfile(data);
-      } else {
-        throw new Error("User profile not found in database.");
+      } catch (err) {
+        console.warn("Could not fetch data during email signin", err);
+        setUserProfile({
+            uid: user.uid,
+            email: user.email || '',
+            name: 'User',
+            role: email === 'admin@areduindia.com' ? 'admin' : 'student',
+            createdAt: new Date().toISOString()
+        } as UserProfile);
       }
     } catch (error) {
       console.error("Sign in failed", error);
@@ -154,13 +218,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (user.photoURL) newUserProfile.photoURL = user.photoURL;
       
       const docRef = doc(db, 'users', user.uid);
-      await setDoc(docRef, newUserProfile);
+      try {
+        await setDoc(docRef, newUserProfile);
+      } catch (err) {
+        console.warn("Could not save to firestore during signup", err);
+      }
       
-      // if (email !== 'admin@areduindia.com') {
-      //   await sendEmailVerification(user);
-      //   await firebaseSignOut(auth);
-      //   throw new Error("Account created! Please check your email to verify before logging in.");
-      // }
+      // User is created and logged in via Firebase Auth, AuthContext state will update via onAuthStateChanged
     } catch (error) {
       console.error("Sign up failed", error);
       throw error;
