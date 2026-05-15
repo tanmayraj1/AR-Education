@@ -1153,7 +1153,7 @@ const OnboardingOverlay = ({ onComplete }: { onComplete: () => void }) => {
   const [selectedCourse, setSelectedCourse] = React.useState('MBBS');
   const [selectedPriorities, setSelectedPriorities] = React.useState<string[]>(['Top Ranked College']);
   
-  const { userProfile } = useAuth();
+  const { userProfile, currentUser } = useAuth();
   
   // Form State
   const [name, setName] = React.useState(userProfile?.name || '');
